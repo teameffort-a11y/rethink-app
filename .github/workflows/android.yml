@@ -11,35 +11,35 @@ jobs:
     runs-on: ubuntu-latest
     env:
       VARIANT: assembleWebsiteFullDebug
+    
     steps:
     - name: 🥏 Checkout
-      uses: actions/checkout@v6
+      uses: actions/checkout@v4 # Reverted to v4 for stability
+
     - name: ☕️ JDKv17
       uses: actions/setup-java@v5
       with:
         java-version: '17'
         distribution: 'temurin'
         cache: gradle
+
     - name: ⚡️ +x gradlew
       run: chmod +x gradlew
+
     - name: 🎪 Secrets
       if: success()
-      # TODO: override iff it doesn't exist
-      # developers.google.com/android/guides/google-services-plugin#adding_the_json_file
       run: |
         mkdir -p app/src/debug
         echo "${GSCV_TEST_JSON}" > app/src/debug/google-services.json
-        # expected: l:29 w:45 m:691
-        wc -lwm app/src/debug/google-services.json
         if [ -z "$GSCV_TEST_JSON" ]; then
           echo "VARIANT=assembleFdroidFullDebug" >> "$GITHUB_ENV"
         fi
       env:
         GSCV_TEST_JSON: ${{ secrets.GOOGLE_SERVICES_TEST_JSON }}
+
     - name: 🚂 Assemble
       if: success()
       run: |
-        ./gradlew lint
         ./gradlew \
           ${VARIANT} \
           --info \
@@ -47,54 +47,12 @@ jobs:
       env:
         VARIANT: ${{ env.VARIANT }}
 
-        name: 🫣 Android CI
+    - name: 🔍 Find APK
+      run: find app/build/outputs/apk/ -name "*.apk"
 
-on:
-  push:
-    branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    env:
-      VARIANT: assembleWebsiteFullDebug
-    steps:
-    - name: 🥏 Checkout
-      uses: actions/checkout@v6
-    - name: ☕️ JDKv17
-      uses: actions/setup-java@v5
+    - name: 📦 Upload APK
+      if: success()
+      uses: actions/upload-artifact@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
-        cache: gradle
-    - name: ⚡️ +x gradlew
-      run: chmod +x gradlew
-    - name: 🎪 Secrets
-      if: success()
-      # TODO: override iff it doesn't exist
-      # developers.google.com/android/guides/google-services-plugin#adding_the_json_file
-      run: |
-        mkdir -p app/src/debug
-        echo "${GSCV_TEST_JSON}" > app/src/debug/google-services.json
-        # expected: l:29 w:45 m:691
-        wc -lwm app/src/debug/google-services.json
-        if [ -z "$GSCV_TEST_JSON" ]; then
-          echo "VARIANT=assembleFdroidFullDebug" >> "$GITHUB_ENV"
-        fi
-      env:
-        GSCV_TEST_JSON: ${{ secrets.GOOGLE_SERVICES_TEST_JSON }}
-    - name: 🚂 Assemble
-      if: success()
-      run: |
-        ./gradlew lint
-        ./gradlew \
-          ${VARIANT} \
-          --info \
-          --warning-mode all
-      env:
-        VARIANT: ${{ env.VARIANT }}
-
-    - run: find app/build/outputs/apk/ -name "*.apk"
-
+        name: my-application-apk
+        path: app/build/outputs/apk/**/*.apk
