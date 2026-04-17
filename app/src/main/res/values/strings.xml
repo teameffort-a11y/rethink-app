@@ -1994,4 +1994,10 @@
     <string name="custom_lan_ip_save_error" translatable="false">Could not save custom LAN IPs</string>
     <string name="custom_lan_ip_open_error" translatable="false">Could not open Custom LAN IPs dialog</string>
     <string name="custom_lan_ip_validation_error" translatable="false">Invalid IP addresses. Ensure:\n• IPv4 must be private (10.x.x.x, 172.16-31.x.x, or 192.168.x.x)\n• IPv6 must be unique local (fc00::/7)\n• Both IP and prefix must be provided together</string>
+    <!-- WARP Tunnel Strings -->
+<string name="warp_register_button">Register with WARP</string>
+<string name="warp_registration_in_progress">Registering with WARP...</string>
+<string name="warp_status_active">✓ WARP Tunnel Active</string>
+<string name="warp_status_inactive">WARP Tunnel - Tap to enable</string>
+<string name="warp_status_registered">✓ Registered with WARP</string>
 </resources>
