@@ -13,27 +13,27 @@
       android:strokeLineJoin="round"
       android:strokeWidth="4"
       android:fillColor="?attr/svgFillColor"
-      android:strokeColor="?attr/svgStrokeColor"
+      android:strokeColor="#FFFFFF"
       android:strokeLineCap="round"/>
   <path
       android:pathData="m42,4v40"
       android:strokeLineJoin="round"
       android:strokeWidth="4"
       android:fillColor="?attr/svgFillColor"
-      android:strokeColor="?attr/svgStrokeColor"
+      android:strokeColor="#FFFFFF"
       android:strokeLineCap="round"/>
   <path
       android:pathData="m18,26 l-4,4 4,4"
       android:strokeLineJoin="round"
       android:strokeWidth="4"
       android:fillColor="?attr/svgFillColor"
-      android:strokeColor="?attr/svgStrokeColor"
+      android:strokeColor="#FFFFFF"
       android:strokeLineCap="round"/>
   <path
       android:pathData="m15,30h13c3.314,0 6,-2.686 6,-6s-2.686,-6 -6,-6c-1.315,0 -14,0 -14,0"
       android:strokeLineJoin="round"
       android:strokeWidth="4"
       android:fillColor="?attr/svgFillColor"
-      android:strokeColor="?attr/svgStrokeColor"
+      android:strokeColor="#FFFFFF"
       android:strokeLineCap="round"/>
 </vector>

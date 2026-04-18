@@ -7,7 +7,7 @@
         android:fillColor="?attr/svgFillColor"
         android:pathData="M9,18l6,-6l-6,-6"
         android:strokeWidth="2"
-        android:strokeColor="?attr/svgStrokeColor"
+        android:strokeColor="#FFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
 </vector>
