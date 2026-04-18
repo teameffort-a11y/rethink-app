@@ -1996,7 +1996,7 @@
     <string name="custom_lan_ip_validation_error" translatable="false">Invalid IP addresses. Ensure:\n• IPv4 must be private (10.x.x.x, 172.16-31.x.x, or 192.168.x.x)\n• IPv6 must be unique local (fc00::/7)\n• Both IP and prefix must be provided together</string>
 
 
-<!--  WARP frankestein -->
+<!--  WARP frankenstein -->
 
     
     <string name="warp_register_button">Register with WARP</string>
