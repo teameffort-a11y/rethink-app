@@ -32,8 +32,8 @@ jobs:
           echo "GOOGLE_SERVICES_JSON found. Enabling Crashlytics via Website variant."
           echo '${{ secrets.GOOGLE_SERVICES_JSON }}' > app/google-services.json
           # Using WebsiteFullRelease to ensure Crashlytics is applied per build.gradle logic
-          echo "VARIANT=assembleWebsiteFullRelease" >> $GITHUB_ENV
-          echo "IS_RELEASE=true" >> $GITHUB_ENV
+          echo "VARIANT=assembleWebsiteFullDebug" >> $GITHUB_ENV
+          echo "IS_RELEASE=false" >> $GITHUB_ENV
         else
           echo "Secret missing. Falling back to De-Googled F-Droid build."
           echo "VARIANT=assembleFdroidFullDebug" >> $GITHUB_ENV
