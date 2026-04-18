@@ -3417,6 +3417,8 @@ class BraveVPNService : VpnService(), ConnectionMonitor.NetworkListener, Bridge,
     }
 
     override fun onDestroy() {
+        UsqueManager.stopSocksProxy()   // ← ADD THIS LINE
+        // ... rest of existing onDestroy code unchanged ...
         if (persistentState.firewallBubbleEnabled) {
             BubbleHelper.dismissBubble(this)
         }
