@@ -127,13 +127,24 @@ android {
         }
     }
 }
-def firestackDependency() {
-    def firestackVersion = project.findProperty("firestackVersion") ?: "+"
-    return "com.celzero.firestack:firestack:${firestackVersion}"
+
+
+def firestackRepo = project.findProperty("firestackRepo") ?: "ossrh"
+def firestackCommit = project.findProperty("firestackCommit") ?: "0.5.5"
+
+def firestackDependency = { suffix = ":debug" ->
+    switch (firestackRepo) {
+        case "ossrh":
+            return "com.celzero:firestack:${firestackCommit}${suffix}@aar"
+        case "jitpack":
+            return "com.github.celzero:firestack:${firestackCommit}${suffix}@aar"
+        default:
+            return "com.celzero:firestack:${firestackCommit}${suffix}@aar"
+    }
 }
 
 dependencies {
-    // Single BoM definition
+    // Single BoM definition erase and leave only the if !degoogled just testing
     implementation platform('com.google.firebase:firebase-bom:34.12.0')
     implementation 'com.google.firebase:firebase-crashlytics'
     implementation 'com.google.firebase:firebase-analytics'
