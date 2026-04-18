@@ -124,6 +124,7 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
         initView()
         initClickListeners()
         displayWarpUi()
+        
     }
 
     private fun initAnimation() {
