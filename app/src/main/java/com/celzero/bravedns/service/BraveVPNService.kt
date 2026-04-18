@@ -23,6 +23,8 @@ import Logger.LOG_BATCH_LOGGER
 import Logger.LOG_GO_LOGGER
 import Logger.LOG_TAG_CONNECTION
 import Logger.LOG_TAG_VPN
+// ADD import near other service imports:
+import com.celzero.bravedns.service.UsqueManager
 import android.annotation.SuppressLint
 import android.app.ActivityManager
 import android.app.ForegroundServiceStartNotAllowedException
