@@ -1165,16 +1165,7 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         val builder = MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim)
         builder.setTitle(R.string.warp_register_button)
         builder.setMessage("Register device with Cloudflare WARP?\n\nThis enables the high-speed WARP tunnel.")
-        builder.setPositiveButton("Register") { _, _ ->
-            io {
-                // Perform registration logic
-                UsqueManager.register(this@ProxySettingsActivity)
-                uiCtx {
-                    displayWarpUi()
-                    showToastUiCentered(this@ProxySettingsActivity, "Registration complete", Toast.LENGTH_SHORT)
-                }
-            }
-        }
+    
         builder.setNegativeButton("Cancel") { dialog, _ ->
             dialog.dismiss()
         }
