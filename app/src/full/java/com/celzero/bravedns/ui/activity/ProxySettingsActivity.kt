@@ -145,7 +145,6 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
         refreshOrbotUi()
         handleProxyUi()
         displayWireguardUi()
-        updateWarpStatus()  // ← ADD THIS LINE
     }
 
     private fun initView() {
@@ -1165,9 +1164,7 @@ private fun showWarpRegistrationDialog() {
     val builder = MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim)
     builder.setTitle(R.string.warp_register_button)
     builder.setMessage("Register device with Cloudflare WARP?\n\nThis enables the high-speed WARP tunnel.")
-    builder.setPositiveButton("Register") { _, _ ->
-        startWarpRegistration()
-    }
+    builder.setPositiveButton("Register")
     builder.setNegativeButton("Cancel") { dialog, _ ->
         dialog.dismiss()
     }
@@ -1176,62 +1173,4 @@ private fun showWarpRegistrationDialog() {
     dialog.show()
 }
 
-private fun startWarpRegistration() {
-    val progressDialog = ProgressDialog(this)
-    progressDialog.setMessage("Registering with WARP service...")
-    progressDialog.setCancelable(false)
-    progressDialog.show()
 
-    io {
-        val registered = UsqueManager.registerWithWarp(this@ProxySettingsActivity)
-        uiCtx {
-            progressDialog.dismiss()
-            if (registered) {
-                showToastUiCentered(
-                    this@ProxySettingsActivity,
-                    "WARP registered successfully!",
-                    Toast.LENGTH_SHORT
-                )
-                persistentState.usqueWarpEnabled = true
-                b.settingsActivityWarpSwitch.isChecked = true
-                b.settingsActivityWarpDesc.text = getString(R.string.warp_status_active)
-                logEvent("WARP Registration successful", "Device registered with WARP")
-            } else {
-                showToastUiCentered(
-                    this@ProxySettingsActivity,
-                    "WARP registration failed. Try again.",
-                    Toast.LENGTH_SHORT
-                )
-                b.settingsActivityWarpSwitch.isChecked = false
-                logEvent("WARP Registration failed", "Failed to register with WARP")
-            }
-        }
-    }
-}
-
-private fun updateWarpStatus() {
-    val isRegistered = UsqueManager.isRegistered(this)
-    val isEnabled = persistentState.usqueWarpEnabled
-
-    val statusText = when {
-        isRegistered && isEnabled -> {
-            b.settingsActivityWarpSwitch.isEnabled = true
-            "✓ Active"
-        }
-        isRegistered && !isEnabled -> {
-            b.settingsActivityWarpSwitch.isEnabled = true
-            "✓ Ready (Tap to enable)"
-        }
-        else -> {
-            b.settingsActivityWarpSwitch.isEnabled = false
-            "✗ Not registered"
-        }
-    }
-    
-    b.settingsActivityWarpDesc.text = statusText
-    b.settingsActivityWarpRegisterBtn.isEnabled = !isRegistered
-}
-
-// ===== END WARP METHODS =====
-
-}
