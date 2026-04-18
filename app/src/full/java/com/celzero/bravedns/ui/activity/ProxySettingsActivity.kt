@@ -82,7 +82,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import java.util.concurrent.TimeUnit
-import com.celzero.bravedns.service.UsqueManager
 import android.app.ProgressDialog
 
 
