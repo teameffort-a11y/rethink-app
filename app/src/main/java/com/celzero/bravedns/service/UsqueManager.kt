@@ -18,38 +18,121 @@ object UsqueManager {
         return File(ctx.filesDir, "config.json").exists()
     }
 
-suspend fun registerWithWarp(context: Context): Boolean = try {
-    Log.d(TAG, "Starting WARP registration")
-    
-    val bin = extractBinary(context)
-    Log.d(TAG, "Binary extracted: ${bin?.absolutePath}")
-    if (bin == null) {
-        Log.e(TAG, "Binary extraction failed")
-        return false
+
+The file is a complete mess — two versions of `registerWithWarp`, one using `Log`/`TAG`/`extractBinary`/`CONFIG_DIR` (none of which exist), one commented out, dead code everywhere. Here is the clean final version — **replace the entire file with this**:
+
+```kotlin
+package com.celzero.bravedns.service
+
+import Logger
+import Logger.LOG_TAG_PROXY
+import android.content.Context
+import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
+import java.io.File
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+object UsqueManager {
+    const val SOCKS_HOST = "127.0.0.1"
+    const val SOCKS_PORT = 40000
+    private const val BINARY_NAME = "usque-rs-arm64"
+    private var process: Process? = null
+
+    fun isRegistered(ctx: Context): Boolean {
+        val f = File(ctx.filesDir, "config.json")
+        Logger.i(LOG_TAG_PROXY, "isRegistered: ${f.absolutePath} exists=${f.exists()}")
+        return f.exists()
     }
-    
-    val configDir = File(context.filesDir, CONFIG_DIR).also { it.mkdirs() }
-    val configFile = File(configDir, CONFIG_FILE)
-    Log.d(TAG, "Config file path: ${configFile.absolutePath}")
 
-    val cmd = listOf(bin.absolutePath, "register", "--accept-tos", "-c", configFile.absolutePath)
-    Log.i(TAG, "register command: ${cmd.joinToString(" ")}")
+    suspend fun registerWithWarp(context: Context): Boolean = withContext(Dispatchers.IO) {
+        Logger.i(LOG_TAG_PROXY, "registerWithWarp: CALLED")
+        try {
+            val bin = copyBinary(context)
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: bin=${bin.absolutePath} canExec=${bin.canExecute()} exists=${bin.exists()}")
 
-    val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
-    val exit = proc.waitFor()
-    Log.i(TAG, "register exit code: $exit")
-    Log.i(TAG, "config file exists: ${configFile.exists()}")
-    if (configFile.exists()) {
-        Log.i(TAG, "config file length: ${configFile.length()}")
+            val configFile = File(context.filesDir, "config.json")
+            val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: cmd=${cmd.joinToString(" ")}")
+
+            val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+
+            // Answer "y" to the Terms of Service interactive prompt
+            proc.outputStream.bufferedWriter().let { w ->
+                w.write("y\n")
+                w.flush()
+                w.close()
+            }
+
+            val output = proc.inputStream.bufferedReader().readText()
+            val exit = proc.waitFor()
+
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: exit=$exit")
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: output=$output")
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: configExists=${configFile.exists()} size=${configFile.length()}")
+
+            val ok = exit == 0 && configFile.exists() && configFile.length() > 0L
+            Logger.i(LOG_TAG_PROXY, "registerWithWarp: result=$ok")
+            ok
+        } catch (e: Exception) {
+            Logger.e(LOG_TAG_PROXY, "registerWithWarp: EXCEPTION ${e.message}", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+            false
+        }
     }
 
-    val result = exit == 0 && configFile.exists() && configFile.length() > 0L
-    Log.i(TAG, "Registration result: $result")
-    result
-} catch (e: Exception) {
-    Log.e(TAG, "registerWithWarp error: ${e.message}", e)
-    false
+    suspend fun startSocksProxy(ctx: Context): Boolean = withContext(Dispatchers.IO) {
+        Logger.i(LOG_TAG_PROXY, "startSocksProxy: CALLED")
+        stopSocksProxy()
+        try {
+            val bin = copyBinary(ctx)
+            Logger.i(LOG_TAG_PROXY, "startSocksProxy: bin=${bin.absolutePath} canExec=${bin.canExecute()}")
+
+            process = ProcessBuilder(
+                bin.absolutePath, "socks",
+                "-b", SOCKS_HOST,
+                "-p", SOCKS_PORT.toString()
+            ).redirectErrorStream(true).start()
+
+            Thread.sleep(800)
+            val alive = process?.isAlive == true
+            Logger.i(LOG_TAG_PROXY, "startSocksProxy: alive=$alive")
+            alive
+        } catch (e: Exception) {
+            Logger.e(LOG_TAG_PROXY, "startSocksProxy: EXCEPTION ${e.message}", e)
+            FirebaseCrashlytics.getInstance().recordException(e)
+            false
+        }
+    }
+
+    fun stopSocksProxy() {
+        Logger.i(LOG_TAG_PROXY, "stopSocksProxy: called")
+        process?.destroy()
+        process = null
+    }
+
+    fun isRunning(): Boolean = process?.isAlive == true
+
+    private fun copyBinary(ctx: Context): File {
+        val out = File(ctx.filesDir, BINARY_NAME)
+        Logger.i(LOG_TAG_PROXY, "copyBinary: path=${out.absolutePath} exists=${out.exists()}")
+        if (!out.exists()) {
+            Logger.i(LOG_TAG_PROXY, "copyBinary: extracting from assets")
+            ctx.assets.open(BINARY_NAME).use { input ->
+                out.outputStream().use { output -> input.copyTo(output) }
+            }
+            out.setExecutable(true)
+            Logger.i(LOG_TAG_PROXY, "copyBinary: done canExec=${out.canExecute()}")
+        }
+        return out
+    }
 }
+
+/**Key fixes: single `registerWithWarp`, uses `copyBinary` consistently, answers `y\n` to the ToS prompt, logs everything with `Logger` (the app's own logger), records exceptions to Crashlytics, correct `socks` command args matching usque's actual CL
+I. **/
+
+
+    
 
 /** suspend fun registerWithWarp(context: Context): Boolean = withContext(Dispatchers.IO) {
     Logger.i(LOG_TAG_PROXY, "registerWithWarp CALLED")  // add this as first line
