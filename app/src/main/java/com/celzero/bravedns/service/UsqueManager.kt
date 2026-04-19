@@ -11,25 +11,77 @@ import kotlinx.coroutines.withContext
 object UsqueManager {
     const val SOCKS_HOST = "127.0.0.1"
     const val SOCKS_PORT = 40000
-    private const val BINARY_NAME = "usque-rs-arm32"
+    private const val BINARY_NAME = "usque-rs-arm64"
     private var process: Process? = null
 
     fun isRegistered(ctx: Context): Boolean {
-        return File(ctx.filesDir, "warp_reg.json").exists()
+        return File(ctx.filesDir, "config.json").exists()
     }
 
-    suspend fun registerWithWarp(ctx: Context): Boolean = withContext(Dispatchers.IO) {
-        return@withContext try {
-            val bin = copyBinary(ctx)
-            val proc = ProcessBuilder(bin.absolutePath, "register")
-                .redirectErrorStream(true)
-                .start()
-            proc.waitFor(30, TimeUnit.SECONDS) && proc.exitValue() == 0
-        } catch (e: Exception) {
-            Logger.e(LOG_TAG_PROXY, "usque register failed: ${e.message}", e)
-            false
-        }
+suspend fun registerWithWarp(context: Context): Boolean = try {
+    Log.d(TAG, "Starting WARP registration")
+    
+    val bin = extractBinary(context)
+    Log.d(TAG, "Binary extracted: ${bin?.absolutePath}")
+    if (bin == null) {
+        Log.e(TAG, "Binary extraction failed")
+        return false
     }
+    
+    val configDir = File(context.filesDir, CONFIG_DIR).also { it.mkdirs() }
+    val configFile = File(configDir, CONFIG_FILE)
+    Log.d(TAG, "Config file path: ${configFile.absolutePath}")
+
+    val cmd = listOf(bin.absolutePath, "register", "--accept-tos", "-c", configFile.absolutePath)
+    Log.i(TAG, "register command: ${cmd.joinToString(" ")}")
+
+    val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+    val exit = proc.waitFor()
+    Log.i(TAG, "register exit code: $exit")
+    Log.i(TAG, "config file exists: ${configFile.exists()}")
+    if (configFile.exists()) {
+        Log.i(TAG, "config file length: ${configFile.length()}")
+    }
+
+    val result = exit == 0 && configFile.exists() && configFile.length() > 0L
+    Log.i(TAG, "Registration result: $result")
+    result
+} catch (e: Exception) {
+    Log.e(TAG, "registerWithWarp error: ${e.message}", e)
+    false
+}
+
+/** suspend fun registerWithWarp(context: Context): Boolean = withContext(Dispatchers.IO) {
+    Logger.i(LOG_TAG_PROXY, "registerWithWarp CALLED")  // add this as first line
+    try {
+        val bin = copyBinary(context)
+        Logger.i(LOG_TAG_PROXY, "usque register: path=${bin.absolutePath} canExec=${bin.canExecute()}")
+
+        val configFile = File(context.filesDir, "config.json")
+        val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+        Logger.i(LOG_TAG_PROXY, "usque register cmd: ${cmd.joinToString(" ")}")
+
+        val proc = ProcessBuilder(cmd)
+            .redirectErrorStream(true)
+            .start()
+
+        // Answer "y" to the Terms of Service prompt
+        proc.outputStream.bufferedWriter().use { it.write("y\n"); it.flush() }
+
+        val output = proc.inputStream.bufferedReader().readText()
+        val exit = proc.waitFor()
+
+        Logger.i(LOG_TAG_PROXY, "usque register exit=$exit output=$output")
+        Logger.i(LOG_TAG_PROXY, "config exists=${configFile.exists()} size=${configFile.length()}")
+
+        exit == 0 && configFile.exists() && configFile.length() > 0L
+    } catch (e: Exception) {
+        Logger.e(LOG_TAG_PROXY, "usque register failed: ${e.message}", e)
+        false
+    }
+}. **/
+
+    
 
     suspend fun startSocksProxy(ctx: Context): Boolean = withContext(Dispatchers.IO) {
         stopSocksProxy()
