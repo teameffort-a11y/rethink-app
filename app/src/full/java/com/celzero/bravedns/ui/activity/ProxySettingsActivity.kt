@@ -1211,37 +1211,36 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         builder.setNegativeButton("Cancel") { dialog, _ ->
             dialog.dismiss()
         }
+        builder.setPositiveButton("Accept") 
+
+
         builder.setPositiveButton("Accept") { dialog, _ ->
-            io {
-            private fun registerWarp() {
-    // Show progress dialog
+    registerWarp()   // just call it
+    dialog.dismiss()
+}
+
+// ... elsewhere in the class, at the same level as other private funs:
+private fun registerWarp() {
     val progressDialog = ProgressDialog(this)
     progressDialog.setTitle("Registering WARP...")
     progressDialog.setMessage("Please wait...")
     progressDialog.setCancelable(false)
     progressDialog.show()
-    
-    // Register in background
+
     io {
         val registered = UsqueManager.registerWithWarp(this@ProxySettingsActivity)
         uiCtx {
             progressDialog.dismiss()
             if (registered) {
                 showToastUiCentered(this@ProxySettingsActivity, "WARP Registered!", Toast.LENGTH_SHORT)
-                persistentState.usqueWarpEnabled = true
-                // VPN restart will be triggered automatically
+                persistentState.usqueEnabled = true
             } else {
                 showToastUiCentered(this@ProxySettingsActivity, "Registration failed", Toast.LENGTH_SHORT)
             }
         }
-
-        
     }
-} 
+}
 
-        }
-            dialog.dismiss()
-        }
         builder.setCancelable(true)
         val dialog = builder.create()
         dialog.show()
