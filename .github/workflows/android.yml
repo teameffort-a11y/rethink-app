@@ -48,7 +48,7 @@ jobs:
       with:
         timeout_minutes: 15
         max_attempts: 3
-        command: ./gradlew ${{ env.VARIANT }} --info --warning-mode all
+        command: ./gradlew ${{ env.VARIANT }} --info --warning-mode all --no-configuration-cache
 
     - name: 🔍 Find APK
       run: find app/build/outputs/apk/ -name "*.apk"
