@@ -1171,7 +1171,7 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
 
 //private fun registerWarp() {
     // Show progress dialog
-  /*  val progressDialog = ProgressDialog(this)
+    val progressDialog = ProgressDialog(this)
     progressDialog.setTitle("Registering WARP...")
     progressDialog.setMessage("Please wait...")
     progressDialog.setCancelable(false)
@@ -1193,7 +1193,7 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
 
         
     }
-} */
+} 
 
 
 
