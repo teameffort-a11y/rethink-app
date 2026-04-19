@@ -20,8 +20,8 @@ object UsqueManager {
 
 
 
-
 suspend fun registerWithWarp(context: Context): Boolean = withContext(Dispatchers.IO) {
+    Logger.i(LOG_TAG_PROXY, "registerWithWarp CALLED")  // add this as first line
     try {
         val bin = copyBinary(context)
         Logger.i(LOG_TAG_PROXY, "usque register: path=${bin.absolutePath} canExec=${bin.canExecute()}")
