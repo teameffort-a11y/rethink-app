@@ -15,21 +15,95 @@ object UsqueManager {
     private var process: Process? = null
 
     fun isRegistered(ctx: Context): Boolean {
-        return File(ctx.filesDir, "warp_reg.json").exists()
+        return File(ctx.filesDir, "config.json").exists()
     }
 
-    suspend fun registerWithWarp(ctx: Context): Boolean = withContext(Dispatchers.IO) {
+/**    suspend fun registerWithWarp(ctx: Context): Boolean = withContext(Dispatchers.IO) {
         return@withContext try {
             val bin = copyBinary(ctx)
-            val proc = ProcessBuilder(bin.absolutePath, "register")
+            if (bin == null) {
+            Log.e(TAG, "registerWithWarp: binary is null — asset not found or extraction failed")
+            return@withContext false
+        }
+        /**    val proc = ProcessBuilder(bin.absolutePath, "register")
                 .redirectErrorStream(true)
                 .start()
             proc.waitFor(30, TimeUnit.SECONDS) && proc.exitValue() == 0
         } catch (e: Exception) {
             Logger.e(LOG_TAG_PROXY, "usque register failed: ${e.message}", e)
             false
-        }
+        }**/
+
+                val configFile = ensureConfigFile(context)
+        Log.i(TAG, "registerWithWarp: config path=${configFile.absolutePath}")
+
+        val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+        Log.i(TAG, "registerWithWarp: running cmd=${cmd.joinToString(" ")}")
+
+        val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+        val output = proc.inputStream.bufferedReader().readText()
+        val exit = proc.waitFor()
+
+        Log.i(TAG, "registerWithWarp: exit=$exit output=$output configExists=${configFile.exists()} configSize=${configFile.length()}")
+
+        exit == 0 && configFile.exists() && configFile.length() > 0L
+    } catch (e: Exception) {
+        Log.e(TAG, "registerWithWarp failed: ${e.message}", e)
+        false
+    } **/
+
+
+
+
+
+   /**     val configFile = ensureConfigFile(context)
+        Log.i(TAG, "registerWithWarp: config path=${configFile.absolutePath}")
+
+        val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+        Log.i(TAG, "registerWithWarp: running cmd=${cmd.joinToString(" ")}")
+
+        val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+        val output = proc.inputStream.bufferedReader().readText()
+        val exit = proc.waitFor()
+
+        Log.i(TAG, "registerWithWarp: exit=$exit output=$output configExists=${configFile.exists()} configSize=${configFile.length()}")
+
+        exit == 0 && configFile.exists() && configFile.length() > 0L
+    } catch (e: Exception) {
+        Log.e(TAG, "registerWithWarp failed: ${e.message}", e)
+        false
+    }**/
     }
+
+
+
+    suspend fun registerWithWarp(context: Context): Boolean = withContext(Dispatchers.IO) {
+    try {
+        val bin = extractBinary(context)
+        if (bin == null) {
+            Log.e(TAG, "registerWithWarp: binary is null — asset not found or extraction failed")
+            return@withContext false
+        }
+        Log.i(TAG, "registerWithWarp: binary path=${bin.absolutePath} exists=${bin.exists()} canExecute=${bin.canExecute()}")
+        
+        val configFile = ensureConfigFile(context)
+        Log.i(TAG, "registerWithWarp: config path=${configFile.absolutePath}")
+
+        val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+        Log.i(TAG, "registerWithWarp: running cmd=${cmd.joinToString(" ")}")
+
+        val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
+        val output = proc.inputStream.bufferedReader().readText()
+        val exit = proc.waitFor()
+
+        Log.i(TAG, "registerWithWarp: exit=$exit output=$output configExists=${configFile.exists()} configSize=${configFile.length()}")
+
+        exit == 0 && configFile.exists() && configFile.length() > 0L
+    } catch (e: Exception) {
+        Log.e(TAG, "registerWithWarp failed: ${e.message}", e)
+        false
+    }
+}
 
     suspend fun startSocksProxy(ctx: Context): Boolean = withContext(Dispatchers.IO) {
         stopSocksProxy()
