@@ -224,32 +224,7 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
                 showWarpRegistrationDialog()
                 return@setOnClickListener
             }
-            b.settingsActivityWarpConnectBtn.isEnabled = false
-            io {
-                val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
-                uiCtx {
-                    if (started) {
-                        insertSocks5Endpoint(
-                            0,
-                            UsqueManager.SOCKS_HOST,
-                            UsqueManager.SOCKS_PORT,
-                            getString(R.string.settings_app_list_default_app),
-                            "",
-                            "",
-                            false
-                        )
-                        persistentState.usqueEnabled = true
-                        updateWarpUi()
-                    } else {
-                        b.settingsActivityWarpConnectBtn.isEnabled = true
-                        showToastUiCentered(
-                            this@ProxySettingsActivity,
-                            getString(R.string.warp_start_failed),
-                            Toast.LENGTH_SHORT
-                        )
-                    }
-                }
-            }
+            connectWarp()
         }
 
         b.settingsActivityWarpDisconnectBtn.setOnClickListener {
@@ -334,6 +309,41 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
             .setCancelable(true)
             .create()
             .show()
+    }
+
+    private fun connectWarp() {
+        val progressDialog = ProgressDialog(this)
+        progressDialog.setTitle(getString(R.string.warp_connecting))
+        progressDialog.setMessage(getString(R.string.warp_connecting_message))
+        progressDialog.setCancelable(false)
+        progressDialog.show()
+        io {
+            val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
+            val debugLog = UsqueManager.readDebugLog(this@ProxySettingsActivity)
+            uiCtx {
+                progressDialog.dismiss()
+                if (started) {
+                    insertSocks5Endpoint(
+                        0,
+                        UsqueManager.SOCKS_HOST,
+                        UsqueManager.SOCKS_PORT,
+                        getString(R.string.settings_app_list_default_app),
+                        "",
+                        "",
+                        false
+                    )
+                    persistentState.usqueEnabled = true
+                }
+                MaterialAlertDialogBuilder(this@ProxySettingsActivity, R.style.App_Dialog_NoDim)
+                    .setTitle(if (started) getString(R.string.warp_connected_ok) else getString(R.string.warp_start_failed))
+                    .setMessage(debugLog)
+                    .setPositiveButton(getString(R.string.lbl_ok)) { d, _ ->
+                        d.dismiss()
+                        updateWarpUi()
+                    }
+                    .show()
+            }
+        }
     }
 
     private fun registerWarp() {

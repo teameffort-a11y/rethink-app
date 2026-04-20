@@ -2011,5 +2011,8 @@
     <string name="warp_status_unregistered">Not registered</string>
     <string name="warp_btn_connect">Connect</string>
     <string name="warp_btn_disconnect">Disconnect</string>
+    <string name="warp_connecting">Connecting to WARP…</string>
+    <string name="warp_connecting_message">Starting WARP tunnel, please wait…</string>
+    <string name="warp_connected_ok">WARP Connected</string>
 
 </resources>

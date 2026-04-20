@@ -115,6 +115,7 @@ object UsqueManager {
     }
 
     suspend fun startSocksProxy(ctx: Context): Boolean = withContext(Dispatchers.IO) {
+        clearDebugLog(ctx)
         dlog(ctx, "startSocksProxy: >>>ENTRY<<<")
         stopSocksProxy()
         try {
