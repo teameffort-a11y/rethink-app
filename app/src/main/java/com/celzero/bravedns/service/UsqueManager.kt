@@ -72,14 +72,15 @@ object UsqueManager {
                 dlog(context, "deleted old config.json")
             }
 
-            val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
+            // --accept-tos skips the stdin TOS prompt entirely
+            val cmd = listOf(bin.absolutePath, "register", "--accept-tos", "-c", configFile.absolutePath)
             dlog(context, "cmd=${cmd.joinToString(" ")}")
 
-            val proc = ProcessBuilder(cmd)
-                .redirectErrorStream(false)
-                .start()
-
-            proc.outputStream.bufferedWriter().use { w -> w.write("y\n"); w.flush() }
+            val pb = ProcessBuilder(cmd).redirectErrorStream(false)
+            // Go 1.24+ uses vDSO __kernel_getrandom which Android's seccomp filter blocks (SIGSYS/exit 159).
+            // Disabling vgetrandom forces the Go runtime to use the getrandom syscall instead.
+            pb.environment()["GODEBUG"] = "vgetrandom=off"
+            val proc = pb.start()
 
             // read stdout and stderr concurrently to avoid deadlock
             val stdoutWriter = StringWriter()
@@ -126,7 +127,9 @@ object UsqueManager {
             val cmd = listOf(bin.absolutePath, "socks", "-b", SOCKS_HOST, "-p", SOCKS_PORT.toString())
             dlog(ctx, "startSocksProxy: cmd=${cmd.joinToString(" ")}")
 
-            process = ProcessBuilder(cmd).redirectErrorStream(true).start()
+            val pb = ProcessBuilder(cmd).redirectErrorStream(true)
+            pb.environment()["GODEBUG"] = "vgetrandom=off"
+            process = pb.start()
             Thread.sleep(800)
             val alive = process?.isAlive == true
             dlog(ctx, "startSocksProxy: alive=$alive")
