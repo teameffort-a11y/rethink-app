@@ -1999,14 +1999,17 @@
 <!--  WARP frankenstein -->
 
     
+    <string name="warp_tunnel_title">WARP Tunnel</string>
     <string name="warp_register_button">Register with WARP</string>
     <string name="warp_registering">Registering…</string>
     <string name="warp_registered_ok">WARP registered successfully</string>
     <string name="warp_register_failed">WARP registration failed. Try again.</string>
     <string name="warp_not_registered">Register with WARP first</string>
     <string name="warp_start_failed">Failed to start WARP tunnel</string>
-    <string name="warp_status_active">WARP active — routed via usque SOCKS5</string>
-    <string name="warp_status_registered">Registered — tap to enable</string>
+    <string name="warp_status_active">Connected — routing via Cloudflare WARP</string>
+    <string name="warp_status_registered">Registered — tap Connect to enable</string>
     <string name="warp_status_unregistered">Not registered</string>
+    <string name="warp_btn_connect">Connect</string>
+    <string name="warp_btn_disconnect">Disconnect</string>
 
 </resources>

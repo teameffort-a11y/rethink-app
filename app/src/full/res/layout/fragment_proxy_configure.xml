@@ -156,73 +156,101 @@
 
 
 <!-- WARP Tunnel Section -->
-<LinearLayout
-    android:id="@+id/settings_activity_warp_container"
+<com.google.android.material.card.MaterialCardView
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:padding="16dp"
-    android:background="?attr/selectableItemBackground">
+    android:layout_marginTop="8dp"
+    android:layout_marginBottom="4dp">
 
     <LinearLayout
+        android:id="@+id/settings_activity_warp_container"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <ImageView
-            android:id="@+id/settings_activity_warp_img"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:src="@drawable/ic_vpn"
-            android:contentDescription="WARP Icon"
-            android:tint="?attr/accentGood" />
-
+        <!-- Title row -->
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:layout_marginStart="16dp">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="WARP Tunnel"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="?attr/accentGood"/>
-        
+            <ImageView
+                android:id="@+id/settings_activity_warp_img"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:src="@drawable/ic_vpn"
+                android:contentDescription="WARP Icon"
+                android:tint="?attr/accentGood" />
 
-            <TextView
-                android:id="@+id/settings_activity_warp_desc"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:text="✗ Not registered"
-                android:textSize="12sp"
-                android:textColor="?attr/accentGood"
-                android:layout_marginTop="4dp" />
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:layout_marginStart="16dp">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/warp_tunnel_title"
+                    android:textSize="16sp"
+                    android:textStyle="bold"
+                    android:textColor="?attr/accentGood" />
+
+                <TextView
+                    android:id="@+id/settings_activity_warp_desc"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/warp_status_unregistered"
+                    android:textSize="12sp"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
-        <com.google.android.material.switchmaterial.SwitchMaterial
-            android:id="@+id/settings_activity_warp_switch"
-            android:layout_width="wrap_content"
+        <!-- Action buttons row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginStart="16dp" />
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp"
+            android:gravity="end">
+
+            <!-- Register (always visible until registered) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_activity_warp_register_btn"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/warp_register_button"
+                android:layout_marginEnd="8dp" />
+
+            <!-- Connect (visible when registered but not connected) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_activity_warp_connect_btn"
+                style="@style/Widget.MaterialComponents.Button"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/warp_btn_connect"
+                android:visibility="gone" />
+
+            <!-- Disconnect (visible when connected) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settings_activity_warp_disconnect_btn"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/warp_btn_disconnect"
+                android:visibility="gone" />
+
+        </LinearLayout>
 
     </LinearLayout>
 
-    <!-- Register Button -->
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/settings_activity_warp_register_btn"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Register with WARP"
-        android:layout_marginTop="12dp"
-        style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
-
-</LinearLayout>
+</com.google.android.material.card.MaterialCardView>
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"

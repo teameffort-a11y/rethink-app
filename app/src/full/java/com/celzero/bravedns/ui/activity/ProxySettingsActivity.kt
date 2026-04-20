@@ -217,52 +217,47 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
         }
 
         // ===== WARP TUNNEL SECTION =====
-        b.settingsActivityWarpContainer.setOnClickListener {
-            b.settingsActivityWarpSwitch.isChecked = !b.settingsActivityWarpSwitch.isChecked
-        }
+        b.settingsActivityWarpRegisterBtn.setOnClickListener { showWarpRegistrationDialog() }
 
-        b.settingsActivityWarpSwitch.setOnCheckedChangeListener { _, checked ->
-            if (checked) {
-                if (!UsqueManager.isRegistered(this)) {
-                    showWarpRegistrationDialog()
-                    b.settingsActivityWarpSwitch.isChecked = false
-                    return@setOnCheckedChangeListener
-                }
-                io {
-                    val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
-                    uiCtx {
-                        if (started) {
-                            insertSocks5Endpoint(
-                                0,
-                                UsqueManager.SOCKS_HOST,
-                                UsqueManager.SOCKS_PORT,
-                                getString(R.string.settings_app_list_default_app),
-                                "",
-                                "",
-                                false
-                            )
-                            persistentState.usqueEnabled = true
-                            b.settingsActivityWarpDesc.text =
-                                getString(R.string.warp_status_active)
-                        } else {
-                            b.settingsActivityWarpSwitch.isChecked = false
-                            showToastUiCentered(
-                                this@ProxySettingsActivity,
-                                "Failed to start WARP proxy",
-                                Toast.LENGTH_SHORT
-                            )
-                        }
+        b.settingsActivityWarpConnectBtn.setOnClickListener {
+            if (!UsqueManager.isRegistered(this)) {
+                showWarpRegistrationDialog()
+                return@setOnClickListener
+            }
+            b.settingsActivityWarpConnectBtn.isEnabled = false
+            io {
+                val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
+                uiCtx {
+                    if (started) {
+                        insertSocks5Endpoint(
+                            0,
+                            UsqueManager.SOCKS_HOST,
+                            UsqueManager.SOCKS_PORT,
+                            getString(R.string.settings_app_list_default_app),
+                            "",
+                            "",
+                            false
+                        )
+                        persistentState.usqueEnabled = true
+                        updateWarpUi()
+                    } else {
+                        b.settingsActivityWarpConnectBtn.isEnabled = true
+                        showToastUiCentered(
+                            this@ProxySettingsActivity,
+                            getString(R.string.warp_start_failed),
+                            Toast.LENGTH_SHORT
+                        )
                     }
                 }
-            } else {
-                UsqueManager.stopSocksProxy()
-                appConfig.removeProxy(AppConfig.ProxyType.SOCKS5, AppConfig.ProxyProvider.CUSTOM)
-                persistentState.usqueEnabled = false
-                b.settingsActivityWarpDesc.text = "Connect to Cloudflare WARP"
             }
         }
 
-        b.settingsActivityWarpRegisterBtn.setOnClickListener { showWarpRegistrationDialog() }
+        b.settingsActivityWarpDisconnectBtn.setOnClickListener {
+            UsqueManager.stopSocksProxy()
+            appConfig.removeProxy(AppConfig.ProxyType.SOCKS5, AppConfig.ProxyProvider.CUSTOM)
+            persistentState.usqueEnabled = false
+            updateWarpUi()
+        }
         // ===== END WARP SECTION =====
 
         b.settingsActivityOrbotImg.setOnClickListener { handleOrbotUiEvent() }
@@ -357,7 +352,7 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
                     .setMessage(debugLog)
                     .setPositiveButton("OK") { d, _ ->
                         d.dismiss()
-                        if (registered) persistentState.usqueEnabled = true
+                        updateWarpUi()
                     }
                     .show()
             }
@@ -365,11 +360,31 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
     }
 
     private fun displayWarpUi() {
-        val isEnabled = persistentState.usqueEnabled
-        b.settingsActivityWarpSwitch.isChecked = isEnabled
-        b.settingsActivityWarpDesc.text =
-            if (isEnabled) getString(R.string.warp_status_active)
-            else "Connect to Cloudflare WARP tunnel"
+        updateWarpUi()
+    }
+
+    private fun updateWarpUi() {
+        val isRegistered = UsqueManager.isRegistered(this)
+        val isConnected = persistentState.usqueEnabled && UsqueManager.isRunning()
+
+        b.settingsActivityWarpDesc.text = when {
+            isConnected  -> getString(R.string.warp_status_active)
+            isRegistered -> getString(R.string.warp_status_registered)
+            else         -> getString(R.string.warp_status_unregistered)
+        }
+
+        // Register button: only shown when not yet registered
+        b.settingsActivityWarpRegisterBtn.visibility =
+            if (isRegistered) View.GONE else View.VISIBLE
+
+        // Connect: shown when registered but not connected
+        b.settingsActivityWarpConnectBtn.visibility =
+            if (isRegistered && !isConnected) View.VISIBLE else View.GONE
+        b.settingsActivityWarpConnectBtn.isEnabled = true
+
+        // Disconnect: shown only when connected
+        b.settingsActivityWarpDisconnectBtn.visibility =
+            if (isConnected) View.VISIBLE else View.GONE
     }
 
     // ===== END WARP METHODS =====
