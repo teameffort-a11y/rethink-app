@@ -24,6 +24,7 @@ object UsqueManager {
         Logger.i(LOG_TAG_PROXY, "registerWithWarp: CALLED")
         try {
             val bin = copyBinary(context)
+            android.util.Log.d("WARP_DEBUG", "bin exists=${bin.exists()} canExec=${bin.canExecute()} size=${bin.length()}")
             val configFile = File(context.filesDir, "config.json")
             val cmd = listOf(bin.absolutePath, "register", "-c", configFile.absolutePath)
             val proc = ProcessBuilder(cmd).redirectErrorStream(true).start()
