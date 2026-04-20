@@ -17,6 +17,7 @@ package com.celzero.bravedns.ui.activity
 
 import Logger
 import Logger.LOG_TAG_PROXY
+import android.app.ProgressDialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
@@ -53,12 +54,9 @@ import com.celzero.bravedns.net.doh.Transaction
 import com.celzero.bravedns.service.EventLogger
 import com.celzero.bravedns.service.FirewallManager
 import com.celzero.bravedns.service.PersistentState
-// ── LOCATION 1 ───────────────────────────────────────────────────────────────
-// Add this import with the other service imports (around line 55)
-// ─────────────────────────────────────────────────────────────────────────────
-import com.celzero.bravedns.service.UsqueManager
 import com.celzero.bravedns.service.ProxyManager
 import com.celzero.bravedns.service.TcpProxyHelper
+import com.celzero.bravedns.service.UsqueManager
 import com.celzero.bravedns.service.VpnController
 import com.celzero.bravedns.service.WireguardManager
 import com.celzero.bravedns.service.WireguardManager.WG_UPTIME_THRESHOLD
@@ -82,7 +80,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.koin.android.ext.android.inject
 import java.util.concurrent.TimeUnit
-import android.app.ProgressDialog
 
 
 class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configure) {
@@ -124,7 +121,6 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
         initView()
         initClickListeners()
         displayWarpUi()
-        
     }
 
     private fun initAnimation() {
@@ -154,13 +150,6 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
         b.orbotTitle.text = getString(R.string.orbot).lowercase()
         b.otherTitle.text = getString(R.string.category_name_others).lowercase()
 
-        /*if (RpnProxyManager.isRpnEnabled()) {
-            b.rpnTitle.visibility = View.VISIBLE
-            b.settingsActivityRpnContainer.visibility = View.VISIBLE
-        } else {
-            b.rpnTitle.visibility = View.GONE
-            b.settingsActivityRpnContainer.visibility = View.GONE
-        }*/
         b.rpnTitle.visibility = View.GONE
         b.settingsActivityRpnContainer.visibility = View.GONE
 
@@ -170,9 +159,7 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
 
     private fun initClickListeners() {
 
-        b.settingsActivityRpnContainer.setOnClickListener {
-            // create an empty activity and load RethinkPlusDashboard fragment
-        }
+        b.settingsActivityRpnContainer.setOnClickListener { }
 
         b.wgRefresh.setOnClickListener { refresh() }
 
@@ -203,7 +190,6 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
                     getString(R.string.settings_socks5_disabled_error, s),
                     Toast.LENGTH_SHORT
                 )
-
                 b.settingsActivitySocks5Switch.isChecked = false
                 return@setOnCheckedChangeListener
             }
@@ -211,73 +197,77 @@ class ProxySettingsActivity : AppCompatActivity(R.layout.fragment_proxy_configur
                 val endpoint = appConfig.getSocks5ProxyDetails()
                 if (endpoint == null) {
                     uiCtx {
-                        showToastUiCentered(this, getString(R.string.blocklist_update_check_failure), Toast.LENGTH_SHORT)
+                        showToastUiCentered(
+                            this,
+                            getString(R.string.blocklist_update_check_failure),
+                            Toast.LENGTH_SHORT
+                        )
                     }
                     return@io
                 }
                 val packageName = endpoint.proxyAppName
                 val app = FirewallManager.getAppInfoByPackage(packageName)?.appName ?: ""
-                val m = ProxyManager.ProxyMode.get(endpoint.proxyMode)
-                if (m?.isCustomSocks5() == true) {
-                    val appNames: MutableList<String> = ArrayList()
-                    appNames.add(getString(R.string.settings_app_list_default_app))
-                    appNames.addAll(FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity))
-                    uiCtx { showSocks5ProxyDialog(endpoint, appNames, app) }
-                } else {
-                    val appNames: MutableList<String> = ArrayList()
-                    appNames.add(getString(R.string.settings_app_list_default_app))
-                    appNames.addAll(FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity))
-                    uiCtx { showSocks5ProxyDialog(endpoint, appNames, app) }
-                }
+                val appNames: MutableList<String> = ArrayList()
+                appNames.add(getString(R.string.settings_app_list_default_app))
+                appNames.addAll(
+                    FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity)
+                )
+                uiCtx { showSocks5ProxyDialog(endpoint, appNames, app) }
             }
         }
 
-// ===== NEW: WARP TUNNEL SECTION =====
-b.settingsActivityWarpContainer.setOnClickListener {
-    b.settingsActivityWarpSwitch.isChecked = !b.settingsActivityWarpSwitch.isChecked
-}
-
-b.settingsActivityWarpSwitch.setOnCheckedChangeListener { _, checked ->
-    if (checked) {
-        if (!UsqueManager.isRegistered(this)) {
-            showWarpRegistrationDialog()
-            b.settingsActivityWarpSwitch.isChecked = false
-            return@setOnCheckedChangeListener
+        // ===== WARP TUNNEL SECTION =====
+        b.settingsActivityWarpContainer.setOnClickListener {
+            b.settingsActivityWarpSwitch.isChecked = !b.settingsActivityWarpSwitch.isChecked
         }
-        io {
-            val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
-            uiCtx {
-                if (started) {
-                    insertSocks5Endpoint(0, UsqueManager.SOCKS_HOST, UsqueManager.SOCKS_PORT,
-                        getString(R.string.settings_app_list_default_app), "", "", false)
-                    persistentState.usqueEnabled = true
-                    b.settingsActivityWarpDesc.text = getString(R.string.warp_status_active)
-                } else {
+
+        b.settingsActivityWarpSwitch.setOnCheckedChangeListener { _, checked ->
+            if (checked) {
+                if (!UsqueManager.isRegistered(this)) {
+                    showWarpRegistrationDialog()
                     b.settingsActivityWarpSwitch.isChecked = false
-                    showToastUiCentered(this@ProxySettingsActivity,
-                        "Failed to start WARP proxy", Toast.LENGTH_SHORT)
+                    return@setOnCheckedChangeListener
                 }
+                io {
+                    val started = UsqueManager.startSocksProxy(this@ProxySettingsActivity)
+                    uiCtx {
+                        if (started) {
+                            insertSocks5Endpoint(
+                                0,
+                                UsqueManager.SOCKS_HOST,
+                                UsqueManager.SOCKS_PORT,
+                                getString(R.string.settings_app_list_default_app),
+                                "",
+                                "",
+                                false
+                            )
+                            persistentState.usqueEnabled = true
+                            b.settingsActivityWarpDesc.text =
+                                getString(R.string.warp_status_active)
+                        } else {
+                            b.settingsActivityWarpSwitch.isChecked = false
+                            showToastUiCentered(
+                                this@ProxySettingsActivity,
+                                "Failed to start WARP proxy",
+                                Toast.LENGTH_SHORT
+                            )
+                        }
+                    }
+                }
+            } else {
+                UsqueManager.stopSocksProxy()
+                appConfig.removeProxy(AppConfig.ProxyType.SOCKS5, AppConfig.ProxyProvider.CUSTOM)
+                persistentState.usqueEnabled = false
+                b.settingsActivityWarpDesc.text = "Connect to Cloudflare WARP"
             }
         }
-    } else {
-        UsqueManager.stopSocksProxy()
-        appConfig.removeProxy(AppConfig.ProxyType.SOCKS5, AppConfig.ProxyProvider.CUSTOM)
-        persistentState.usqueEnabled = false
-        b.settingsActivityWarpDesc.text = "Connect to Cloudflare WARP"
-    }
-}
 
-b.settingsActivityWarpRegisterBtn.setOnClickListener {
-    showWarpRegistrationDialog()
-}
-// ===== END WARP SECTION =====
+        b.settingsActivityWarpRegisterBtn.setOnClickListener { showWarpRegistrationDialog() }
+        // ===== END WARP SECTION =====
 
         b.settingsActivityOrbotImg.setOnClickListener { handleOrbotUiEvent() }
-
         b.settingsActivityOrbotContainer.setOnClickListener { handleOrbotUiEvent() }
-
         b.settingsActivityWireguardContainer.setOnClickListener { openWireguardActivity() }
-
         b.settingsActivityWireguardImg.setOnClickListener { openWireguardActivity() }
 
         b.settingsActivityHttpProxyContainer.setOnClickListener {
@@ -318,27 +308,71 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 }
                 if (endpoint == null) {
                     uiCtx {
-                        showToastUiCentered(this, getString(R.string.blocklist_update_check_failure), Toast.LENGTH_SHORT)
+                        showToastUiCentered(
+                            this,
+                            getString(R.string.blocklist_update_check_failure),
+                            Toast.LENGTH_SHORT
+                        )
                     }
                     return@io
                 }
                 val packageName = endpoint.proxyAppName
                 val app = FirewallManager.getAppInfoByPackage(packageName)
-                val m = ProxyManager.ProxyMode.get(endpoint.proxyMode)
-                if (m?.isCustomHttp() == true) {
-                    val appNames: MutableList<String> = ArrayList()
-                    appNames.add(getString(R.string.settings_app_list_default_app))
-                    appNames.addAll(FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity))
-                    uiCtx { showHttpProxyDialog(endpoint, appNames, app?.appName) }
-                } else {
-                    val appNames: MutableList<String> = ArrayList()
-                    appNames.add(getString(R.string.settings_app_list_default_app))
-                    appNames.addAll(FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity))
-                    uiCtx { showHttpProxyDialog(endpoint, appNames, app?.appName) }
-                }
+                val appNames: MutableList<String> = ArrayList()
+                appNames.add(getString(R.string.settings_app_list_default_app))
+                appNames.addAll(
+                    FirewallManager.getAllAppNamesSortedByVpnPermission(this@ProxySettingsActivity)
+                )
+                uiCtx { showHttpProxyDialog(endpoint, appNames, app?.appName) }
             }
         }
     }
+
+    // ===== WARP METHODS =====
+
+    private fun showWarpRegistrationDialog() {
+        MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim)
+            .setTitle(R.string.warp_register_button)
+            .setMessage("Register device with Cloudflare WARP?")
+            .setPositiveButton("Register") { dialog, _ -> dialog.dismiss(); registerWarp() }
+            .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
+            .setCancelable(true)
+            .create()
+            .show()
+    }
+
+    private fun registerWarp() {
+        val progressDialog = ProgressDialog(this)
+        progressDialog.setTitle("Registering WARP...")
+        progressDialog.setMessage("Please wait...")
+        progressDialog.setCancelable(false)
+        progressDialog.show()
+        io {
+            val registered = UsqueManager.registerWithWarp(this@ProxySettingsActivity)
+            val debugLog = UsqueManager.readDebugLog(this@ProxySettingsActivity)
+            uiCtx {
+                progressDialog.dismiss()
+                MaterialAlertDialogBuilder(this@ProxySettingsActivity, R.style.App_Dialog_NoDim)
+                    .setTitle(if (registered) "✅ WARP Registered" else "❌ Registration Failed")
+                    .setMessage(debugLog)
+                    .setPositiveButton("OK") { d, _ ->
+                        d.dismiss()
+                        if (registered) persistentState.usqueEnabled = true
+                    }
+                    .show()
+            }
+        }
+    }
+
+    private fun displayWarpUi() {
+        val isEnabled = persistentState.usqueEnabled
+        b.settingsActivityWarpSwitch.isChecked = isEnabled
+        b.settingsActivityWarpDesc.text =
+            if (isEnabled) getString(R.string.warp_status_active)
+            else "Connect to Cloudflare WARP tunnel"
+    }
+
+    // ===== END WARP METHODS =====
 
     private fun refresh() {
         b.wgRefresh.isEnabled = false
@@ -352,7 +386,6 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         }
     }
 
-    /** Prompt user to download the Orbot app based on the current BUILDCONFIG flavor. */
     private fun showOrbotInstallDialog() {
         val builder = MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim)
         builder.setTitle(R.string.orbot_install_dialog_title)
@@ -360,12 +393,13 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         builder.setPositiveButton(getString(R.string.orbot_install_dialog_positive)) { _, _ ->
             handleOrbotInstall()
         }
-        builder.setNegativeButton(getString(R.string.lbl_dismiss)) { dialog, _ -> dialog.dismiss() }
+        builder.setNegativeButton(getString(R.string.lbl_dismiss)) { dialog, _ ->
+            dialog.dismiss()
+        }
         builder.setNeutralButton(getString(R.string.orbot_install_dialog_neutral)) { _, _ ->
             launchOrbotWebsite()
         }
-        val dialog = builder.create()
-        dialog.show()
+        builder.create().show()
     }
 
     private fun launchOrbotWebsite() {
@@ -385,7 +419,6 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             )
             return
         }
-
         try {
             startActivity(intent)
         } catch (e: ActivityNotFoundException) {
@@ -444,7 +477,6 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             )
             return
         }
-
         val bottomSheetFragment = OrbotBottomSheet()
         bottomSheetFragment.show(this.supportFragmentManager, bottomSheetFragment.tag)
     }
@@ -460,20 +492,25 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             val endpoint = try {
                 appConfig.getHttpProxyDetails()
             } catch (e: Exception) {
-                Logger.e(LOG_TAG_PROXY, "Error fetching HTTP proxy details in displayHttpProxyUi: ${e.message}", e)
+                Logger.e(
+                    LOG_TAG_PROXY,
+                    "Error fetching HTTP proxy details in displayHttpProxyUi: ${e.message}",
+                    e
+                )
                 null
             }
             if (endpoint == null) {
                 uiCtx {
-                    showToastUiCentered(this, getString(R.string.blocklist_update_check_failure), Toast.LENGTH_SHORT)
+                    showToastUiCentered(
+                        this,
+                        getString(R.string.blocklist_update_check_failure),
+                        Toast.LENGTH_SHORT
+                    )
                 }
                 return@io
             }
             val m = ProxyManager.ProxyMode.get(endpoint.proxyMode) ?: return@io
-
-            // only update below ui if its custom http proxy
             if (!m.isCustomHttp()) return@io
-
             uiCtx {
                 b.settingsActivityHttpProxyContainer.visibility = View.VISIBLE
                 if (b.settingsActivityHttpProxySwitch.isChecked) {
@@ -485,9 +522,7 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
     }
 
     private fun displayWireguardUi() {
-
         val activeWgs = WireguardManager.getActiveConfigs()
-
         if (activeWgs.isEmpty()) {
             b.settingsActivityWireguardDesc.text = getString(R.string.wireguard_description)
             return
@@ -500,44 +535,45 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 val stats = VpnController.getProxyStats(id)
                 val dnsStatusId = VpnController.getDnsStatus(id)
 
+                val statusText =
+                    if (statusPair.first == Backend.TPU) {
+                        getString(
+                                UIUtils.getProxyStatusStringRes(UIUtils.ProxyStatus.TPU.id)
+                            )
+                            .replaceFirstChar(Char::titlecase)
+                    } else if (dnsStatusId != null && isDnsError(dnsStatusId)) {
+                        getString(R.string.status_failing).replaceFirstChar(Char::titlecase)
+                    } else {
+                        getProxyStatusText(statusPair, stats)
+                    }
 
-                val statusText = if (statusPair.first == Backend.TPU) {
-                    getString(UIUtils.getProxyStatusStringRes(UIUtils.ProxyStatus.TPU.id)).replaceFirstChar(Char::titlecase)
-                } else if (dnsStatusId != null && isDnsError(dnsStatusId)) {
-                    // DNS is failing, show failing status
-                    getString(R.string.status_failing).replaceFirstChar(Char::titlecase)
-                } else {
-                    // DNS is okay, show proxy status
-                    getProxyStatusText(statusPair, stats)
-                }
-
-                wgStatus += getString(
-                    R.string.ci_ip_label,
-                    it.getName(),
-                    statusText.padStart(1, ' ')
-                ) + "\n"
+                wgStatus +=
+                    getString(R.string.ci_ip_label, it.getName(), statusText.padStart(1, ' ')) +
+                        "\n"
                 Logger.d(LOG_TAG_PROXY, "current proxy status for $id: $statusText")
             }
             wgStatus = wgStatus.trimEnd()
-            uiCtx {
-                b.settingsActivityWireguardDesc.text = wgStatus
-            }
+            uiCtx { b.settingsActivityWireguardDesc.text = wgStatus }
         }
     }
 
     private fun isDnsError(statusId: Long?): Boolean {
         if (statusId == null) return true
-
         val s = Transaction.Status.fromId(statusId)
-        return s == Transaction.Status.BAD_QUERY || s == Transaction.Status.BAD_RESPONSE ||
-               s == Transaction.Status.NO_RESPONSE || s == Transaction.Status.SEND_FAIL ||
-               s == Transaction.Status.CLIENT_ERROR || s == Transaction.Status.INTERNAL_ERROR ||
-               s == Transaction.Status.TRANSPORT_ERROR
+        return s == Transaction.Status.BAD_QUERY ||
+            s == Transaction.Status.BAD_RESPONSE ||
+            s == Transaction.Status.NO_RESPONSE ||
+            s == Transaction.Status.SEND_FAIL ||
+            s == Transaction.Status.CLIENT_ERROR ||
+            s == Transaction.Status.INTERNAL_ERROR ||
+            s == Transaction.Status.TRANSPORT_ERROR
     }
 
-    private fun getProxyStatusText(statusPair: Pair<Long?, String>, stats: RouterStats?): String {
+    private fun getProxyStatusText(
+        statusPair: Pair<Long?, String>,
+        stats: RouterStats?
+    ): String {
         val status = UIUtils.ProxyStatus.entries.find { it.id == statusPair.first }
-
         return getStatusText(status, stats, statusPair.second)
     }
 
@@ -547,11 +583,12 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         errMsg: String?
     ): String {
         if (status == null) {
-            val txt = if (errMsg != null && errMsg.isNotEmpty()) {
-                getString(R.string.status_waiting) + " ($errMsg)"
-            } else {
-                getString(R.string.status_waiting)
-            }
+            val txt =
+                if (errMsg != null && errMsg.isNotEmpty()) {
+                    getString(R.string.status_waiting) + " ($errMsg)"
+                } else {
+                    getString(R.string.status_waiting)
+                }
             return txt.replaceFirstChar(Char::titlecase)
         }
 
@@ -562,19 +599,21 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             return getString(R.string.status_failing).replaceFirstChar(Char::titlecase)
         }
 
-        val baseText = getString(UIUtils.getProxyStatusStringRes(status.id))
-            .replaceFirstChar(Char::titlecase)
+        val baseText =
+            getString(UIUtils.getProxyStatusStringRes(status.id)).replaceFirstChar(Char::titlecase)
 
-        val handshakeTime = if (stats != null && stats.lastOK > 0L) {
-            DateUtils.getRelativeTimeSpanString(
-                stats.lastOK,
-                now,
-                DateUtils.MINUTE_IN_MILLIS,
-                DateUtils.FORMAT_ABBREV_RELATIVE
-            ).toString()
-        } else {
-            null
-        }
+        val handshakeTime =
+            if (stats != null && stats.lastOK > 0L) {
+                DateUtils.getRelativeTimeSpanString(
+                        stats.lastOK,
+                        now,
+                        DateUtils.MINUTE_IN_MILLIS,
+                        DateUtils.FORMAT_ABBREV_RELATIVE
+                    )
+                    .toString()
+            } else {
+                null
+            }
 
         return if (stats?.lastOK != 0L && handshakeTime != null) {
             getString(R.string.about_version_install_source, baseText, handshakeTime)
@@ -585,13 +624,9 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
 
     private fun displaySocks5Ui() {
         val isCustomSocks5Enabled = appConfig.isCustomSocks5Enabled()
-
         b.settingsActivitySocks5Progress.visibility = View.GONE
         b.settingsActivitySocks5Switch.isChecked = isCustomSocks5Enabled
-
-        if (!isCustomSocks5Enabled) {
-            return
-        }
+        if (!isCustomSocks5Enabled) return
 
         io {
             val endpoint: ProxyEndpoint? = appConfig.getSocks5ProxyDetails()
@@ -606,13 +641,13 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 return@io
             }
             val m = ProxyManager.ProxyMode.get(endpoint.proxyMode) ?: return@io
-
-            // only update below ui if its custom http proxy
             if (!m.isCustomSocks5()) return@io
 
             if (
                 endpoint.proxyAppName.isNullOrBlank() ||
-                    endpoint.proxyAppName.equals(getString(R.string.settings_app_list_default_app))
+                    endpoint.proxyAppName.equals(
+                        getString(R.string.settings_app_list_default_app)
+                    )
             ) {
                 uiCtx {
                     b.settingsActivitySocks5Desc.text =
@@ -624,34 +659,28 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 }
             } else {
                 val app = FirewallManager.getAppInfoByPackage(endpoint.proxyAppName!!)
-                if (app == null) {
-                    uiCtx {
-                        b.settingsActivitySocks5Desc.text =
+                uiCtx {
+                    b.settingsActivitySocks5Desc.text =
+                        if (app == null) {
                             getString(
                                 R.string.settings_socks_forwarding_desc_no_app,
                                 endpoint.proxyIP,
                                 endpoint.proxyPort.toString()
                             )
-                    }
-                } else {
-                    uiCtx {
-                        b.settingsActivitySocks5Desc.text =
+                        } else {
                             getString(
                                 R.string.settings_socks_forwarding_desc,
                                 endpoint.proxyIP,
                                 endpoint.proxyPort.toString(),
                                 app.appName
                             )
-                    }
+                        }
                 }
             }
         }
     }
 
     private fun refreshOrbotUi() {
-        // Checks whether the Orbot is installed.
-        // If not, then prompt the user for installation.
-        // Else, enable the Orbot bottom sheet fragment.
         io {
             val isOrbotInstalled = FirewallManager.isOrbotInstalled()
             val isOrbotDns = appConfig.isOrbotDns()
@@ -669,40 +698,40 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
 
                 when (appConfig.getProxyType()) {
                     AppConfig.ProxyType.HTTP.name -> {
-                        b.settingsActivityHttpOrbotDesc.text = getString(R.string.orbot_bs_status_2)
+                        b.settingsActivityHttpOrbotDesc.text =
+                            getString(R.string.orbot_bs_status_2)
                     }
                     AppConfig.ProxyType.SOCKS5.name -> {
-                        if (isOrbotDns) {
-                            b.settingsActivityHttpOrbotDesc.text =
+                        b.settingsActivityHttpOrbotDesc.text =
+                            if (isOrbotDns) {
                                 getString(
                                     R.string.orbot_bs_status_1,
                                     getString(R.string.orbot_status_arg_3)
                                 )
-                        } else {
-                            b.settingsActivityHttpOrbotDesc.text =
+                            } else {
                                 getString(
                                     R.string.orbot_bs_status_1,
                                     getString(R.string.orbot_status_arg_2)
                                 )
-                        }
+                            }
                     }
                     AppConfig.ProxyType.HTTP_SOCKS5.name -> {
-                        if (isOrbotDns) {
-                            b.settingsActivityHttpOrbotDesc.text =
+                        b.settingsActivityHttpOrbotDesc.text =
+                            if (isOrbotDns) {
                                 getString(
                                     R.string.orbot_bs_status_3,
                                     getString(R.string.orbot_status_arg_3)
                                 )
-                        } else {
-                            b.settingsActivityHttpOrbotDesc.text =
+                            } else {
                                 getString(
                                     R.string.orbot_bs_status_3,
                                     getString(R.string.orbot_status_arg_2)
                                 )
-                        }
+                            }
                     }
                     else -> {
-                        b.settingsActivityHttpOrbotDesc.text = getString(R.string.orbot_bs_status_4)
+                        b.settingsActivityHttpOrbotDesc.text =
+                            getString(R.string.orbot_bs_status_4)
                     }
                 }
             }
@@ -715,7 +744,8 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         appName: String
     ) {
         val dialogBinding = DialogSetProxyBinding.inflate(layoutInflater)
-        val builder = MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim).setView(dialogBinding.root)
+        val builder =
+            MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim).setView(dialogBinding.root)
         val lp = WindowManager.LayoutParams()
         val dialog = builder.create()
         lp.copyFrom(dialog.window?.attributes)
@@ -746,14 +776,12 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         excludeAppCheckBox.isChecked = !persistentState.excludeAppsInProxy
         excludeAppCheckBox.isEnabled = !VpnController.isVpnLockdown()
         lockdownDesc.visibility = if (VpnController.isVpnLockdown()) View.VISIBLE else View.GONE
-
-        if (VpnController.isVpnLockdown()) {
-            excludeAppCheckBox.alpha = 0.5f
-        }
+        if (VpnController.isVpnLockdown()) excludeAppCheckBox.alpha = 0.5f
 
         val proxySpinnerAdapter =
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, appNames)
         appNameSpinner.adapter = proxySpinnerAdapter
+
         if (!endpoint.proxyIP.isNullOrBlank()) {
             ipAddressEditText.setText(endpoint.proxyIP, TextView.BufferType.EDITABLE)
             portEditText.setText(endpoint.proxyPort.toString(), TextView.BufferType.EDITABLE)
@@ -762,16 +790,11 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 !endpoint.proxyAppName.isNullOrBlank() &&
                     endpoint.proxyAppName != getString(R.string.settings_app_list_default_app)
             ) {
-
                 var position = 0
                 for ((i, item) in appNames.withIndex()) {
-                    if (item == appName) {
-                        position = i
-                    }
+                    if (item == appName) position = i
                 }
                 appNameSpinner.setSelection(position)
-            } else {
-                // no-op
             }
         } else {
             ipAddressEditText.setText(Constants.SOCKS_DEFAULT_IP, TextView.BufferType.EDITABLE)
@@ -819,13 +842,10 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             }
 
             try {
-                port = portEditText.text.toString().toInt() // can cause NumberFormatException
+                port = portEditText.text.toString().toInt()
                 isValid =
-                    if (Utilities.isLanIpv4(ip)) {
-                        Utilities.isValidLocalPort(port)
-                    } else {
-                        isValidPort(port)
-                    }
+                    if (Utilities.isLanIpv4(ip)) Utilities.isValidLocalPort(port)
+                    else isValidPort(port)
                 if (!isValid) {
                     errorTxt.text = getString(R.string.settings_http_proxy_error_text1)
                 }
@@ -834,34 +854,31 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                 errorTxt.text = getString(R.string.settings_http_proxy_error_text2)
                 isValid = false
             }
-            if (udpBlockCheckBox.isChecked) {
-                isUDPBlock = true
-            }
 
+            if (udpBlockCheckBox.isChecked) isUDPBlock = true
             persistentState.excludeAppsInProxy = !excludeAppCheckBox.isChecked
 
             val userName: String = userNameEditText.text.toString()
             val password: String = passwordEditText.text.toString()
             if (isValid && isIPValid) {
-                // Do the Socks5 Proxy setting there
                 persistentState.setUdpBlocked(udpBlockCheckBox.isChecked)
                 val app = appNameSpinner.selectedItem.toString()
                 insertSocks5Endpoint(endpoint.id, ip, port, app, userName, password, isUDPBlock)
-                if (app == getString(R.string.settings_app_list_default_app)) {
-                    b.settingsActivitySocks5Desc.text =
+                b.settingsActivitySocks5Desc.text =
+                    if (app == getString(R.string.settings_app_list_default_app)) {
                         getString(
                             R.string.settings_socks_forwarding_desc_no_app,
                             ip,
                             port.toString()
                         )
-                } else {
-                    b.settingsActivitySocks5Desc.text =
+                    } else {
                         getString(R.string.settings_socks_forwarding_desc, ip, port.toString(), app)
-                }
-                logEvent("Custom SOCKS5 Proxy set", "custom SOCKS5 proxy to $ip:$port, app: $app")
+                    }
+                logEvent(
+                    "Custom SOCKS5 Proxy set",
+                    "custom SOCKS5 proxy to $ip:$port, app: $app"
+                )
                 dialog.dismiss()
-            } else {
-                // no-op
             }
         }
 
@@ -879,7 +896,6 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         io { TcpProxyHelper.enable() }
     }
 
-    // Should be in disabled state when the brave mode is in DNS only / Vpn in lockdown mode.
     private fun handleProxyUi() {
         val canEnableProxy = appConfig.canEnableProxy()
 
@@ -899,15 +915,11 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             b.wgRefresh.visibility = View.GONE
         }
 
-        // Wireguard
         b.settingsActivityWireguardImg.isEnabled = canEnableProxy
         b.settingsActivityWireguardContainer.isEnabled = canEnableProxy
-        // Orbot
         b.settingsActivityOrbotImg.isEnabled = canEnableProxy
         b.settingsActivityOrbotContainer.isEnabled = canEnableProxy
-        // SOCKS5
         b.settingsActivitySocks5Switch.isEnabled = canEnableProxy
-        // HTTP Proxy
         b.settingsActivityHttpProxySwitch.isEnabled = canEnableProxy
     }
 
@@ -919,7 +931,8 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         val defaultHost = "http://127.0.0.1:8118"
         var host: String
         val dialogBinding = DialogSetProxyBinding.inflate(layoutInflater)
-        val builder = MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim).setView(dialogBinding.root)
+        val builder =
+            MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim).setView(dialogBinding.root)
         val lp = WindowManager.LayoutParams()
         val dialog = builder.create()
         dialog.show()
@@ -947,18 +960,14 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         val excludeAppLayout: LinearLayout = dialogBinding.dialogProxyExcludeAppsHeader
         val excludeAppCheckBox: CheckBox = dialogBinding.dialogProxyExcludeAppsCheck
 
-        // do not show the UDP block option for HTTP proxy
         udpBlockLl.visibility = View.GONE
-        // do not show the port option for HTTP proxy
         portLl.visibility = View.GONE
-        // do not show the username/password option for HTTP proxy
         userNameLl.visibility = View.GONE
         passwordLl.visibility = View.GONE
         excludeAppCheckBox.isChecked = !persistentState.excludeAppsInProxy
         excludeAppCheckBox.isEnabled = !VpnController.isVpnLockdown()
-        if (VpnController.isVpnLockdown()) {
-            excludeAppCheckBox.alpha = 0.5f
-        }
+        if (VpnController.isVpnLockdown()) excludeAppCheckBox.alpha = 0.5f
+
         lockdownDesc.setOnClickListener {
             dialog.dismiss()
             UIUtils.openVpnProfile(this)
@@ -976,6 +985,7 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
         val proxySpinnerAdapter =
             ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, appNames)
         appNameSpinner.adapter = proxySpinnerAdapter
+
         if (!endpoint.proxyIP.isNullOrBlank()) {
             ipAddressEditText.setText(endpoint.proxyIP, TextView.BufferType.EDITABLE)
             portEditText.setText(endpoint.proxyPort.toString(), TextView.BufferType.EDITABLE)
@@ -985,13 +995,9 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             ) {
                 var position = 0
                 for ((i, item) in appNames.withIndex()) {
-                    if (item == appName) {
-                        position = i
-                    }
+                    if (item == appName) position = i
                 }
                 appNameSpinner.setSelection(position)
-            } else {
-                // no-op
             }
         } else {
             ipAddressEditText.setText(defaultHost, TextView.BufferType.EDITABLE)
@@ -1012,7 +1018,11 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
 
             if (isHostValid) {
                 errorTxt.visibility = View.INVISIBLE
-                insertHttpProxyEndpointDB(endpoint.id, host, appNameSpinner.selectedItem.toString())
+                insertHttpProxyEndpointDB(
+                    endpoint.id,
+                    host,
+                    appNameSpinner.selectedItem.toString()
+                )
                 dialog.dismiss()
                 persistentState.excludeAppsInProxy = !excludeAppCheckBox.isChecked
                 showToastUiCentered(
@@ -1024,9 +1034,13 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
                     b.settingsActivityHttpProxyDesc.text =
                         getString(R.string.settings_http_proxy_desc, host)
                 }
-                logEvent("Custom HTTP Proxy set", "custom HTTP proxy to $host, app: ${appNameSpinner.selectedItem}" )
+                logEvent(
+                    "Custom HTTP Proxy set",
+                    "custom HTTP proxy to $host, app: ${appNameSpinner.selectedItem}"
+                )
             }
         }
+
         cancelURLBtn.setOnClickListener {
             dialog.dismiss()
             appConfig.removeProxy(AppConfig.ProxyType.HTTP, AppConfig.ProxyProvider.CUSTOM)
@@ -1056,26 +1070,11 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             val proxyName = ProxyManager.ProxyMode.SOCKS5.name
             val mode = ProxyManager.ProxyMode.SOCKS5
             val appPackage =
-                if (appName == getString(R.string.settings_app_list_default_app)) {
-                    ""
-                } else {
-                    FirewallManager.getPackageNameByAppName(appName) ?: ""
-                }
+                if (appName == getString(R.string.settings_app_list_default_app)) ""
+                else FirewallManager.getPackageNameByAppName(appName) ?: ""
             val proxyEndpoint =
-                constructProxy(
-                    id,
-                    proxyName,
-                    mode,
-                    appPackage,
-                    ip,
-                    port ?: 0,
-                    userName,
-                    password,
-                    isUDPBlock
-                )
-
+                constructProxy(id, proxyName, mode, appPackage, ip, port ?: 0, userName, password, isUDPBlock)
             if (proxyEndpoint != null) {
-                // insertSocks5Endpoint: 127.0.0.1, 10808, SOCKS5, Socks5, false
                 appConfig.updateCustomSocks5Proxy(proxyEndpoint)
             }
         }
@@ -1094,23 +1093,10 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             val proxyName = Constants.HTTP
             val mode = ProxyManager.ProxyMode.HTTP
             val packageName =
-                if (appName == getString(R.string.settings_app_list_default_app)) {
-                    ""
-                } else {
-                    FirewallManager.getPackageNameByAppName(appName) ?: ""
-                }
+                if (appName == getString(R.string.settings_app_list_default_app)) ""
+                else FirewallManager.getPackageNameByAppName(appName) ?: ""
             val proxyEndpoint =
-                constructProxy(
-                    id,
-                    proxyName,
-                    mode,
-                    packageName,
-                    ip,
-                    0,
-                    userName = "",
-                    password = "",
-                    false /* isUdp */
-                )
+                constructProxy(id, proxyName, mode, packageName, ip, 0, "", "", false)
             if (proxyEndpoint != null) {
                 appConfig.updateCustomHttpProxy(proxyEndpoint)
             }
@@ -1132,12 +1118,10 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
             Logger.w(LOG_TAG_PROXY, "cannot construct proxy with values ip: $ip, port: $port")
             return null
         }
-
-        if (mode == ProxyManager.ProxyMode.SOCKS5 && (!isValidPort(port))) {
+        if (mode == ProxyManager.ProxyMode.SOCKS5 && !isValidPort(port)) {
             Logger.w(LOG_TAG_PROXY, "cannot construct proxy with values ip: $ip, port: $port")
             return null
         }
-
         return ProxyEndpoint(
             id,
             name,
@@ -1167,55 +1151,4 @@ b.settingsActivityWarpRegisterBtn.setOnClickListener {
     private suspend fun uiCtx(f: suspend () -> Unit) {
         withContext(Dispatchers.Main) { f() }
     }
-
-
-private fun registerWarp() {
-    val progressDialog = ProgressDialog(this)
-    progressDialog.setTitle("Registering WARP...")
-    progressDialog.setMessage("Please wait...")
-    progressDialog.setCancelable(false)
-    progressDialog.show()
-    io {
-        val registered = UsqueManager.registerWithWarp(this@ProxySettingsActivity)
-        val debugLog = UsqueManager.readDebugLog(this@ProxySettingsActivity)
-        uiCtx {
-            progressDialog.dismiss()
-            // ── always show debug log so you can see it on LambdaTest ──
-            MaterialAlertDialogBuilder(this@ProxySettingsActivity, R.style.App_Dialog_NoDim)
-                .setTitle(if (registered) "✅ WARP Registered" else "❌ Registration Failed")
-                .setMessage(debugLog)
-                .setPositiveButton("OK") { d, _ ->
-                    d.dismiss()
-                    if (registered) persistentState.usqueEnabled = true
-                }
-                .show()
-        }
-    }
 }
-
-private fun showWarpRegistrationDialog() {
-    MaterialAlertDialogBuilder(this, R.style.App_Dialog_NoDim)
-        .setTitle(R.string.warp_register_button)
-        .setMessage("Register device with Cloudflare WARP?")
-        .setPositiveButton("Register") { dialog, _ -> dialog.dismiss(); registerWarp() }
-        .setNegativeButton("Cancel") { dialog, _ -> dialog.dismiss() }
-        .setCancelable(true)
-        .create().show()
-}
-
-
-
-
-    private fun displayWarpUi() {
-        val isEnabled = persistentState.usqueEnabled
-        b.settingsActivityWarpSwitch.isChecked = isEnabled
-        if (isEnabled) {
-            b.settingsActivityWarpDesc.text = getString(R.string.warp_status_active)
-        } else {
-            b.settingsActivityWarpDesc.text = "Connect to Cloudflare WARP tunnel"
-        }
-    }
-} // <--- This closes the ProxySettingsActivity class
-
-
-
