@@ -300,6 +300,14 @@ class GoVpnAdapter : KoinComponent {
                 }
             }
         }
+        // probe the newly registered transport so its status transitions from START to COMPLETE
+        // without waiting for organic DNS traffic; without this the UI shows "Starting" forever
+        try {
+            getResolver()?.refresh()
+            Logger.v(LOG_TAG_VPN, "$TAG resolver refreshed after transport change")
+        } catch (e: Exception) {
+            Logger.w(LOG_TAG_VPN, "$TAG err refreshing resolver after transport change: ${e.message}")
+        }
         Logger.v(LOG_TAG_VPN, "$TAG addTransport done")
     }
 
