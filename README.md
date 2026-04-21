@@ -11,9 +11,16 @@ Rethink DNS + Firewall + VPN for Android ( Added Cloudflare Warp Masque VPN Supp
 
 A FORK OF RETHINK DNS
 
-FROM THE PEOPLE FOR THE PEOPLE
+with the implementation of USQUE
 
-FREE
+credits:
+
+https://github.com/Diniboy1123
+
+and
+
+https://github.com/celzero Celzero Team
+
 
 A [WireGuard](https://github.com/wireguard/wireguard-go) client, an [OpenSnitch](https://github.com/evilsocket/opensnitch)-inspired firewall and network monitor + a [pi-hole](https://github.com/pi-hole/pi-hole)-inspired DNS over HTTPS, DNS over TLS, DNSCrypt client with blocklists.
 
