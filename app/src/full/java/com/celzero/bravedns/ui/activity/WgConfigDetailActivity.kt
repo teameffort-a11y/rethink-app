@@ -620,7 +620,7 @@ class WgConfigDetailActivity : AppCompatActivity(R.layout.activity_wg_detail) {
         io {
             try {
                 val newIface = WgInterface.Builder()
-                    .parsePrivateKey(currentIface.getKeyPair().getPrivateKey().base64())
+                    .parsePrivateKey(currentIface.getKeyPair().getPrivateKey().base64().tos())
                     .parseAddresses(currentIface.getAddresses().joinToString { it.toString() })
                     .parseListenPort(
                         if (currentIface.listenPort.isPresent) currentIface.listenPort.get().toString() else "0"
